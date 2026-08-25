@@ -20,22 +20,22 @@ const getTodayStr = (offsetDays = 0) => {
   return d.toISOString().split('T')[0];
 };
 
-// Helper to get Day ID ('Mon', 'Tue', etc.) for a date object or YYYY-MM-DD
+// Helper to get Day ID ('Mon', 'Tue', etc.)
 const getDayIdFromDate = (dateObj) => {
-  const dayIndex = dateObj.getDay(); // 0 = Sun, 1 = Mon ...
+  const dayIndex = dateObj.getDay();
   const map = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return map[dayIndex];
 };
 
-// Initial sample data with targetDays
-const INITIAL_HABITS = [
+// Initial default habits if localStorage is empty
+const DEFAULT_HABITS = [
   {
     id: 'h1',
     name: 'Morning Meditation & Breathwork',
     description: '10 minutes of mindfulness before starting work',
     category: 'Mindset',
     color: '#2563eb',
-    targetDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], // Everyday
+    targetDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     currentStreak: 5,
     longestStreak: 12,
     completedDates: [getTodayStr(-4), getTodayStr(-3), getTodayStr(-2), getTodayStr(-1), getTodayStr(0)],
@@ -47,37 +47,55 @@ const INITIAL_HABITS = [
     description: 'Focus on technology or psychology books',
     category: 'Learning',
     color: '#059669',
-    targetDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], // Weekdays only
+    targetDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     currentStreak: 3,
     longestStreak: 8,
     completedDates: [getTodayStr(-2), getTodayStr(-1), getTodayStr(0)],
     createdAt: '2026-08-05',
   },
-  {
-    id: 'h3',
-    name: '30 Min Strength Workout',
-    description: 'Gym or calisthenics sessions',
-    category: 'Health & Fitness',
-    color: '#d97706',
-    targetDays: ['Mon', 'Wed', 'Fri'], // 3 days a week
-    currentStreak: 2,
-    longestStreak: 14,
-    completedDates: [getTodayStr(-2), getTodayStr(0)],
-    createdAt: '2026-08-10',
-  },
 ];
 
-const INITIAL_CATEGORIES = ['Health & Fitness', 'Productivity', 'Learning', 'Mindset', 'General'];
+const DEFAULT_CATEGORIES = ['Health & Fitness', 'Productivity', 'Learning', 'Mindset', 'General'];
 const PALETTE = ['#0f172a', '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0284c7'];
 
+// LocalStorage Keys
+const STORAGE_KEYS = {
+  HABITS: 'habit_tracker_habits_v2',
+  CATEGORIES: 'habit_tracker_categories_v2',
+  THEME: 'habit_tracker_theme_v2',
+};
+
 export default function HabitDashboard() {
-  const [habits, setHabits] = useState(INITIAL_HABITS);
-  const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+  // Load initial states from localStorage with fallbacks
+  const [habits, setHabits] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.HABITS);
+      return saved ? JSON.parse(saved) : DEFAULT_HABITS;
+    } catch {
+      return DEFAULT_HABITS;
+    }
+  });
+
+  const [categories, setCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+      return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+    } catch {
+      return DEFAULT_CATEGORIES;
+    }
+  });
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.THEME);
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
   const [filterCategory, setFilterCategory] = useState('All');
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'completed'
-  
-  // Theme state
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -86,7 +104,7 @@ export default function HabitDashboard() {
   // New habit form states
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitDesc, setNewHabitDesc] = useState('');
-  const [newHabitCategory, setNewHabitCategory] = useState('Health & Fitness');
+  const [newHabitCategory, setNewHabitCategory] = useState(categories[0] || 'General');
   const [newHabitColor, setNewHabitColor] = useState('#2563eb');
   const [newTargetDays, setNewTargetDays] = useState(ALL_DAY_IDS);
 
@@ -96,8 +114,31 @@ export default function HabitDashboard() {
   const todayDateObj = new Date();
   const todayDayId = getDayIdFromDate(todayDateObj);
 
-  // Apply dark mode class to root container
+  // Persist habits to localStorage on change
   useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(habits));
+    } catch (e) {
+      console.error('Failed to save habits to localStorage:', e);
+    }
+  }, [habits]);
+
+  // Persist categories to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    } catch (e) {
+      console.error('Failed to save categories to localStorage:', e);
+    }
+  }, [categories]);
+
+  // Persist theme & toggle dark mode class on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(isDarkMode));
+    } catch (e) {
+      console.error('Failed to save theme to localStorage:', e);
+    }
     if (isDarkMode) {
       document.body.classList.add('dark-theme');
     } else {
@@ -114,20 +155,14 @@ export default function HabitDashboard() {
     let streak = 0;
     let checkDate = new Date();
 
-    // Determine starting date for check:
-    // If today is a target day and completed -> count from today.
-    // If today is a target day and NOT completed -> check if we need to start from yesterday.
-    // If today is NOT a target day -> start checking backwards from yesterday.
     const todayFormatted = checkDate.toISOString().split('T')[0];
     const isTodayTarget = targetSet.has(getDayIdFromDate(checkDate));
     const isTodayDone = datesSet.has(todayFormatted);
 
     if (isTodayTarget && !isTodayDone) {
-      // Check if we missed today or if we should look back to past target days
       checkDate.setDate(checkDate.getDate() - 1);
     }
 
-    // Walk backward day by day
     for (let i = 0; i < 365; i++) {
       const formatted = checkDate.toISOString().split('T')[0];
       const dayId = getDayIdFromDate(checkDate);
@@ -136,11 +171,9 @@ export default function HabitDashboard() {
         if (datesSet.has(formatted)) {
           streak++;
         } else {
-          // If we encounter a target day that wasn't completed, streak is broken
           break;
         }
       }
-      // If dayId is NOT a target day (rest day), skip it without breaking streak!
       checkDate.setDate(checkDate.getDate() - 1);
     }
 
@@ -192,7 +225,7 @@ export default function HabitDashboard() {
   // Target days selector helpers
   const toggleTargetDay = (dayId) => {
     if (newTargetDays.includes(dayId)) {
-      if (newTargetDays.length === 1) return; // Must have at least 1 day
+      if (newTargetDays.length === 1) return;
       setNewTargetDays(newTargetDays.filter((d) => d !== dayId));
     } else {
       setNewTargetDays([...newTargetDays, dayId]);
@@ -259,7 +292,6 @@ export default function HabitDashboard() {
     }
   };
 
-  // Format schedule text badge
   const getScheduleBadgeText = (targetDays) => {
     if (!targetDays || targetDays.length === 7) return 'Everyday';
     if (targetDays.length === 5 && !targetDays.includes('Sat') && !targetDays.includes('Sun')) return 'Weekdays';
@@ -267,7 +299,6 @@ export default function HabitDashboard() {
     return targetDays.join(', ');
   };
 
-  // Filter habits scheduled for today vs general
   const habitsForToday = useMemo(() => {
     return habits.filter((h) => h.targetDays.includes(todayDayId));
   }, [habits, todayDayId]);
