@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import JSZip from 'jszip';
 import './HabitDashboard.css';
 
 const DAYS_OF_WEEK = [
@@ -27,7 +28,6 @@ const getDayIdFromDate = (dateObj) => {
   return map[dayIndex];
 };
 
-// Initial default habits if localStorage is empty
 const DEFAULT_HABITS = [
   {
     id: 'h1',
@@ -58,7 +58,6 @@ const DEFAULT_HABITS = [
 const DEFAULT_CATEGORIES = ['Health & Fitness', 'Productivity', 'Learning', 'Mindset', 'General'];
 const PALETTE = ['#0f172a', '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0284c7'];
 
-// LocalStorage Keys
 const STORAGE_KEYS = {
   HABITS: 'habit_tracker_habits_v2',
   CATEGORIES: 'habit_tracker_categories_v2',
@@ -66,7 +65,8 @@ const STORAGE_KEYS = {
 };
 
 export default function HabitDashboard() {
-  // Load initial states from localStorage with fallbacks
+  const fileInputRef = useRef(null);
+
   const [habits, setHabits] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.HABITS);
@@ -100,6 +100,7 @@ export default function HabitDashboard() {
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showDataModal, setShowDataModal] = useState(false);
 
   // New habit form states
   const [newHabitName, setNewHabitName] = useState('');
@@ -109,12 +110,13 @@ export default function HabitDashboard() {
   const [newTargetDays, setNewTargetDays] = useState(ALL_DAY_IDS);
 
   const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [syncStatusMsg, setSyncStatusMsg] = useState('');
 
   const todayStr = getTodayStr(0);
   const todayDateObj = new Date();
   const todayDayId = getDayIdFromDate(todayDateObj);
 
-  // Persist habits to localStorage on change
+  // LocalStorage Persistence
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(habits));
@@ -123,7 +125,6 @@ export default function HabitDashboard() {
     }
   }, [habits]);
 
-  // Persist categories to localStorage on change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
@@ -132,7 +133,6 @@ export default function HabitDashboard() {
     }
   }, [categories]);
 
-  // Persist theme & toggle dark mode class on change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(isDarkMode));
@@ -180,7 +180,7 @@ export default function HabitDashboard() {
     return streak;
   };
 
-  // Toggle habit completion for today
+  // Toggle habit completion
   const handleToggleHabit = (habitId) => {
     setHabits((prevHabits) =>
       prevHabits.map((habit) => {
@@ -292,6 +292,100 @@ export default function HabitDashboard() {
     }
   };
 
+  // ==========================================
+  // EXPORT & IMPORT ZIP BACKUP DATA METHOD
+  // ==========================================
+
+  // Export current data as a .zip file containing habits_backup.json
+  const handleExportZipData = async () => {
+    try {
+      const backupPayload = {
+        version: '2.0',
+        exportedAt: new Date().toISOString(),
+        habits: habits,
+        categories: categories,
+        isDarkMode: isDarkMode,
+      };
+
+      const zip = new JSZip();
+      zip.file('habits_backup.json', JSON.stringify(backupPayload, null, 2));
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `habit_tracker_backup_${todayStr}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+
+      setSyncStatusMsg('✅ Backup ZIP created and downloaded successfully!');
+      setTimeout(() => setSyncStatusMsg(''), 4000);
+    } catch (err) {
+      console.error('Error generating ZIP export:', err);
+      alert('Failed to generate ZIP export file.');
+    }
+  };
+
+  // Import data from uploaded .zip or .json file
+  const handleImportFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      let payloadJson = null;
+
+      if (file.name.endsWith('.zip')) {
+        const zip = new JSZip();
+        const unzipped = await zip.loadAsync(file);
+        
+        // Find habits_backup.json or any json inside zip
+        const jsonFileName = Object.keys(unzipped.files).find((name) => name.endsWith('.json'));
+        if (!jsonFileName) {
+          alert('Invalid ZIP backup: No JSON data file found inside archive.');
+          return;
+        }
+
+        const jsonText = await unzipped.files[jsonFileName].async('string');
+        payloadJson = JSON.parse(jsonText);
+      } else if (file.name.endsWith('.json')) {
+        const jsonText = await file.text();
+        payloadJson = JSON.parse(jsonText);
+      } else {
+        alert('Please select a valid .zip or .json backup file.');
+        return;
+      }
+
+      if (!payloadJson || !Array.isArray(payloadJson.habits)) {
+        alert('Invalid backup structure: Habits list missing.');
+        return;
+      }
+
+      // Restore Habits & Categories
+      setHabits(payloadJson.habits);
+      if (Array.isArray(payloadJson.categories) && payloadJson.categories.length > 0) {
+        setCategories(payloadJson.categories);
+      }
+      if (typeof payloadJson.isDarkMode === 'boolean') {
+        setIsDarkMode(payloadJson.isDarkMode);
+      }
+
+      setSyncStatusMsg(`🎉 Restored ${payloadJson.habits.length} habits successfully!`);
+      setTimeout(() => {
+        setSyncStatusMsg('');
+        setShowDataModal(false);
+      }, 2500);
+    } catch (err) {
+      console.error('Error importing backup file:', err);
+      alert('Error reading backup file. Please check file format.');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const getScheduleBadgeText = (targetDays) => {
     if (!targetDays || targetDays.length === 7) return 'Everyday';
     if (targetDays.length === 5 && !targetDays.includes('Sat') && !targetDays.includes('Sun')) return 'Weekdays';
@@ -354,6 +448,7 @@ export default function HabitDashboard() {
         </div>
 
         <div className="header-actions">
+          {/* THEME TOGGLE */}
           <button
             className="btn-theme-toggle"
             onClick={() => setIsDarkMode(!isDarkMode)}
@@ -362,6 +457,16 @@ export default function HabitDashboard() {
             {isDarkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
 
+          {/* BACKUP / DATA TRANSFER BUTTON */}
+          <button
+            className="btn-manage-cat"
+            onClick={() => setShowDataModal(true)}
+            title="Transfer & Backup Data"
+          >
+            📦 Backup & Sync
+          </button>
+
+          {/* CATEGORIES BUTTON */}
           <button
             className="btn-manage-cat"
             onClick={() => setShowCategoryModal(true)}
@@ -370,6 +475,7 @@ export default function HabitDashboard() {
             🏷️ Categories
           </button>
 
+          {/* ADD HABIT BUTTON */}
           <button className="btn-add-habit" onClick={() => setShowAddModal(true)}>
             <span className="btn-icon">+</span> New Habit
           </button>
@@ -711,6 +817,69 @@ export default function HabitDashboard() {
             <div className="modal-actions">
               <button type="button" className="btn-primary" onClick={() => setShowCategoryModal(false)}>
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BACKUP & DATA TRANSFER MODAL */}
+      {showDataModal && (
+        <div className="modal-backdrop" onClick={() => setShowDataModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📦 Device Data Sync & Backup</h2>
+              <button className="close-btn" onClick={() => setShowDataModal(false)}>×</button>
+            </div>
+
+            <div className="data-transfer-body">
+              <p className="data-transfer-desc">
+                Transfer your habits, streaks, and completion history between your phone, tablet, and computer using ZIP backup files.
+              </p>
+
+              {syncStatusMsg && (
+                <div className="sync-status-alert">
+                  {syncStatusMsg}
+                </div>
+              )}
+
+              <div className="data-action-card">
+                <div className="action-card-info">
+                  <h3>1. Export Backup (.zip)</h3>
+                  <p>Download a single ZIP archive containing all your current habits and streaks.</p>
+                </div>
+                <button type="button" className="btn-primary" onClick={handleExportZipData}>
+                  ⬇️ Download ZIP Backup
+                </button>
+              </div>
+
+              <div className="data-action-card">
+                <div className="action-card-info">
+                  <h3>2. Restore / Import Backup</h3>
+                  <p>Upload a `.zip` or `.json` backup file from another device to restore all your habits.</p>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".zip,.json"
+                  onChange={handleImportFileChange}
+                  style={{ display: 'none' }}
+                />
+
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  📁 Select Backup File (.zip)
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="btn-secondary" onClick={() => setShowDataModal(false)}>
+                Close
               </button>
             </div>
           </div>

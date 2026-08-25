@@ -1,4 +1,4 @@
-/* HabitDashboard.css - Clean, Modern, Premium Display Typography Design System */
+/* HabitDashboard.css - Clean, Modern, Premium Display Typography & Backup Sync Design System */
 
 :root {
   --bg-page: #f8fafc;
@@ -124,6 +124,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .btn-theme-toggle,
@@ -686,6 +687,55 @@ body.dark-theme .schedule-badge {
 .trash-icon {
   width: 18px;
   height: 18px;
+}
+
+/* DATA TRANSFER MODAL & BACKUP STYLING */
+.data-transfer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.data-transfer-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sync-status-alert {
+  padding: 0.75rem 1rem;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  animation: fadeIn 0.2s ease;
+}
+
+.data-action-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.action-card-info h3 {
+  margin: 0 0 0.35rem 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.action-card-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 /* EMPTY STATE */
