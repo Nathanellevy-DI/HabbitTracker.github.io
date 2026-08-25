@@ -85,7 +85,18 @@ body {
 }
 
 .header-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   margin-bottom: 0.75rem;
+}
+
+.app-header-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  object-fit: cover;
 }
 
 .brand-badge {

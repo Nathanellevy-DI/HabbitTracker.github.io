@@ -95,7 +95,7 @@ export default function HabitDashboard() {
   });
 
   const [filterCategory, setFilterCategory] = useState('All');
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'completed'
+  const [activeTab, setActiveTab] = useState('all');
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -292,11 +292,7 @@ export default function HabitDashboard() {
     }
   };
 
-  // ==========================================
-  // EXPORT & IMPORT ZIP BACKUP DATA METHOD
-  // ==========================================
-
-  // Export current data as a .zip file containing habits_backup.json
+  // Export & Import Data
   const handleExportZipData = async () => {
     try {
       const backupPayload = {
@@ -328,7 +324,6 @@ export default function HabitDashboard() {
     }
   };
 
-  // Import data from uploaded .zip or .json file
   const handleImportFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -340,7 +335,6 @@ export default function HabitDashboard() {
         const zip = new JSZip();
         const unzipped = await zip.loadAsync(file);
         
-        // Find habits_backup.json or any json inside zip
         const jsonFileName = Object.keys(unzipped.files).find((name) => name.endsWith('.json'));
         if (!jsonFileName) {
           alert('Invalid ZIP backup: No JSON data file found inside archive.');
@@ -362,7 +356,6 @@ export default function HabitDashboard() {
         return;
       }
 
-      // Restore Habits & Categories
       setHabits(payloadJson.habits);
       if (Array.isArray(payloadJson.categories) && payloadJson.categories.length > 0) {
         setCategories(payloadJson.categories);
@@ -441,6 +434,7 @@ export default function HabitDashboard() {
       <header className="dashboard-header">
         <div className="header-left">
           <div className="header-badge-row">
+            <img src="./icon.svg" alt="Habit Chain Logo" className="app-header-logo" />
             <span className="brand-badge">⚡ DON'T BREAK THE CHAIN</span>
           </div>
           <h1 className="header-title">Daily Habits</h1>
@@ -448,7 +442,6 @@ export default function HabitDashboard() {
         </div>
 
         <div className="header-actions">
-          {/* THEME TOGGLE */}
           <button
             className="btn-theme-toggle"
             onClick={() => setIsDarkMode(!isDarkMode)}
@@ -457,7 +450,6 @@ export default function HabitDashboard() {
             {isDarkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
 
-          {/* BACKUP / DATA TRANSFER BUTTON */}
           <button
             className="btn-manage-cat"
             onClick={() => setShowDataModal(true)}
@@ -466,7 +458,6 @@ export default function HabitDashboard() {
             📦 Backup & Sync
           </button>
 
-          {/* CATEGORIES BUTTON */}
           <button
             className="btn-manage-cat"
             onClick={() => setShowCategoryModal(true)}
@@ -475,7 +466,6 @@ export default function HabitDashboard() {
             🏷️ Categories
           </button>
 
-          {/* ADD HABIT BUTTON */}
           <button className="btn-add-habit" onClick={() => setShowAddModal(true)}>
             <span className="btn-icon">+</span> New Habit
           </button>
