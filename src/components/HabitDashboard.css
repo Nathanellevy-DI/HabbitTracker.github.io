@@ -1,4 +1,4 @@
-/* HabitDashboard.css - Clean, Modern, Premium Display Typography & iOS / iPhone 13+ / iPad Design System */
+/* HabitDashboard.css - Clean, Modern, Premium Display Typography & Backup Sync & Privacy Design System */
 
 :root {
   --bg-page: #f8fafc;
@@ -65,12 +65,12 @@ body {
   font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  min-height: 100dvh; /* Dynamic Mobile Viewport Height for Safari */
+  min-height: 100dvh;
   transition: background-color 0.2s ease, color 0.2s ease;
-  -webkit-tap-highlight-color: transparent; /* Remove iOS grey flash on tap */
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* SAFE AREA INSET PADDING FOR IPHONE 13, 14, 15, 16 PRO, 17 PRO MAX & DYNAMIC ISLAND */
+/* SAFE AREA INSET PADDING */
 .habit-dashboard {
   max-width: 1020px;
   margin: 0 auto;
@@ -150,7 +150,7 @@ body {
   border: 1px solid var(--border-color);
   color: var(--text-main);
   padding: 0.75rem 1.15rem;
-  min-height: 44px; /* iOS standard touch target size */
+  min-height: 44px;
   border-radius: 10px;
   font-weight: 700;
   font-size: 0.925rem;
@@ -361,6 +361,39 @@ body {
   background: var(--brand-primary);
   border-color: var(--brand-primary);
   color: var(--brand-text);
+}
+
+/* PRIVATE CATEGORY PILL & CARD STYLING */
+.pill-btn.pill-private {
+  border-color: #7c3aed;
+  color: #7c3aed;
+}
+
+body.dark-theme .pill-btn.pill-private {
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+.pill-btn.pill-private.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #ffffff;
+}
+
+.badge-private {
+  background: rgba(124, 58, 237, 0.1) !important;
+  color: #7c3aed !important;
+  border: 1px solid rgba(124, 58, 237, 0.3) !important;
+}
+
+body.dark-theme .badge-private {
+  background: rgba(167, 139, 250, 0.15) !important;
+  color: #c4b5fd !important;
+  border: 1px solid rgba(167, 139, 250, 0.3) !important;
+}
+
+.item-private {
+  border-color: rgba(124, 58, 237, 0.4) !important;
 }
 
 .btn-clear-all {
@@ -1042,11 +1075,7 @@ body.dark-theme .schedule-badge {
   background: var(--brand-primary-hover);
 }
 
-/* ===================================================
-   RESPONSIVE DESIGN: IPHONE 13, 14, 15, 16 PRO, 17 PRO MAX & IPAD
-   =================================================== */
-
-/* IPHONE 13 PRO / 14 / 15 / 16 PRO / 17 PRO MAX MOBILE VIEWPORTS (390px - 440px) */
+/* RESPONSIVE DESIGN */
 @media (max-width: 640px) {
   .habit-dashboard {
     padding-top: max(1.5rem, calc(1rem + env(safe-area-inset-top)));
@@ -1129,7 +1158,6 @@ body.dark-theme .schedule-badge {
   }
 }
 
-/* IPAD & TABLET VIEWPORTS (641px - 1024px) */
 @media (min-width: 641px) and (max-width: 1024px) {
   .habit-dashboard {
     padding: 3rem 2rem;

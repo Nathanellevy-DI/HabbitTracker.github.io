@@ -53,9 +53,21 @@ const DEFAULT_HABITS = [
     completedDates: [getTodayStr(-2), getTodayStr(-1), getTodayStr(0)],
     createdAt: '2026-08-05',
   },
+  {
+    id: 'h3_private',
+    name: 'Personal Reflection & Journaling',
+    description: 'Private personal reflection entry',
+    category: 'Private',
+    color: '#7c3aed',
+    targetDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    currentStreak: 4,
+    longestStreak: 7,
+    completedDates: [getTodayStr(-3), getTodayStr(-2), getTodayStr(-1), getTodayStr(0)],
+    createdAt: '2026-08-01',
+  },
 ];
 
-const DEFAULT_CATEGORIES = ['Health & Fitness', 'Productivity', 'Learning', 'Mindset', 'General'];
+const DEFAULT_CATEGORIES = ['Health & Fitness', 'Productivity', 'Learning', 'Mindset', 'General', 'Private'];
 const PALETTE = ['#0f172a', '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0284c7'];
 
 const STORAGE_KEYS = {
@@ -79,7 +91,11 @@ export default function HabitDashboard() {
   const [categories, setCategories] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-      return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+      let parsed = saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+      if (!parsed.includes('Private')) {
+        parsed.push('Private');
+      }
+      return parsed;
     } catch {
       return DEFAULT_CATEGORIES;
     }
@@ -215,10 +231,19 @@ export default function HabitDashboard() {
     }
   };
 
-  // Clear all habits
+  // Clear habits in current view
   const handleClearAllHabits = () => {
-    if (window.confirm('Are you sure you want to delete ALL habits? This action cannot be undone.')) {
-      setHabits([]);
+    const isPrivateView = filterCategory === 'Private';
+    const msg = isPrivateView
+      ? 'Are you sure you want to delete ALL Private habits?'
+      : 'Are you sure you want to delete ALL public habits?';
+
+    if (window.confirm(msg)) {
+      if (isPrivateView) {
+        setHabits(habits.filter((h) => h.category !== 'Private'));
+      } else {
+        setHabits(habits.filter((h) => h.category === 'Private'));
+      }
     }
   };
 
@@ -277,6 +302,10 @@ export default function HabitDashboard() {
   };
 
   const handleRemoveCategory = (catToRemove) => {
+    if (catToRemove === 'Private') {
+      alert('The Private category is built-in and cannot be removed.');
+      return;
+    }
     if (categories.length <= 1) {
       alert('You must have at least one category.');
       return;
@@ -386,30 +415,41 @@ export default function HabitDashboard() {
     return targetDays.join(', ');
   };
 
+  // ==========================================
+  // PRIVACY FILTERING LOGIC
+  // - "All" tab shows all PUBLIC habits only (excludes Private).
+  // - "Private" category pill tab shows ONLY Private habits.
+  // ==========================================
+  const relevantHabits = useMemo(() => {
+    if (filterCategory === 'Private') {
+      return habits.filter((h) => h.category === 'Private');
+    }
+    if (filterCategory === 'All') {
+      return habits.filter((h) => h.category !== 'Private');
+    }
+    return habits.filter((h) => h.category === filterCategory);
+  }, [habits, filterCategory]);
+
   const habitsForToday = useMemo(() => {
-    return habits.filter((h) => h.targetDays.includes(todayDayId));
-  }, [habits, todayDayId]);
+    return relevantHabits.filter((h) => h.targetDays.includes(todayDayId));
+  }, [relevantHabits, todayDayId]);
 
   const filteredHabits = useMemo(() => {
-    return habits.filter((habit) => {
+    return relevantHabits.filter((habit) => {
       const isDoneToday = habit.completedDates.includes(todayStr);
       const isScheduledToday = habit.targetDays.includes(todayDayId);
-
-      if (filterCategory !== 'All' && habit.category !== filterCategory) {
-        return false;
-      }
 
       if (activeTab === 'pending') return isScheduledToday && !isDoneToday;
       if (activeTab === 'completed') return isDoneToday;
 
       return true;
     });
-  }, [habits, filterCategory, activeTab, todayStr, todayDayId]);
+  }, [relevantHabits, activeTab, todayStr, todayDayId]);
 
   const completedTodayCount = habitsForToday.filter((h) => h.completedDates.includes(todayStr)).length;
   const totalTodayScheduledCount = habitsForToday.length;
   const completionPercentage = totalTodayScheduledCount > 0 ? Math.round((completedTodayCount / totalTodayScheduledCount) * 100) : 0;
-  const totalActiveStreaks = habits.reduce((acc, h) => acc + h.currentStreak, 0);
+  const totalActiveStreaks = relevantHabits.reduce((acc, h) => acc + h.currentStreak, 0);
 
   const past7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -437,11 +477,18 @@ export default function HabitDashboard() {
             <img src="./icon.svg" alt="Habit Chain Logo" className="app-header-logo" />
             <span className="brand-badge">⚡ DON'T BREAK THE CHAIN</span>
           </div>
-          <h1 className="header-title">Daily Habits</h1>
-          <p className="header-subtitle">{formattedCurrentDate} • Stay consistent day by day.</p>
+          <h1 className="header-title">
+            {filterCategory === 'Private' ? '🔒 Private Habits' : 'Daily Habits'}
+          </h1>
+          <p className="header-subtitle">
+            {filterCategory === 'Private'
+              ? 'Your private habits (hidden from All view)'
+              : `${formattedCurrentDate} • Stay consistent day by day.`}
+          </p>
         </div>
 
         <div className="header-actions">
+          {/* THEME TOGGLE */}
           <button
             className="btn-theme-toggle"
             onClick={() => setIsDarkMode(!isDarkMode)}
@@ -450,6 +497,7 @@ export default function HabitDashboard() {
             {isDarkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
 
+          {/* BACKUP / DATA TRANSFER BUTTON */}
           <button
             className="btn-manage-cat"
             onClick={() => setShowDataModal(true)}
@@ -458,6 +506,7 @@ export default function HabitDashboard() {
             📦 Backup & Sync
           </button>
 
+          {/* CATEGORIES BUTTON */}
           <button
             className="btn-manage-cat"
             onClick={() => setShowCategoryModal(true)}
@@ -466,6 +515,7 @@ export default function HabitDashboard() {
             🏷️ Categories
           </button>
 
+          {/* ADD HABIT BUTTON */}
           <button className="btn-add-habit" onClick={() => setShowAddModal(true)}>
             <span className="btn-icon">+</span> New Habit
           </button>
@@ -493,7 +543,7 @@ export default function HabitDashboard() {
             <div className="metric-val-row">
               <span className="metric-value streak-glow">⚡ {totalActiveStreaks} Days</span>
             </div>
-            <span className="metric-subtext">Across {habits.length} habits</span>
+            <span className="metric-subtext">Across {relevantHabits.length} habits</span>
           </div>
         </div>
       </div>
@@ -506,7 +556,7 @@ export default function HabitDashboard() {
             className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveTab('all')}
           >
-            All ({habits.length})
+            All ({relevantHabits.length})
           </button>
           <button
             className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
@@ -531,20 +581,23 @@ export default function HabitDashboard() {
             >
               All
             </button>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                className={`pill-btn ${filterCategory === cat ? 'active' : ''}`}
-                onClick={() => setFilterCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const isPrivate = cat === 'Private';
+              return (
+                <button
+                  key={cat}
+                  className={`pill-btn ${filterCategory === cat ? 'active' : ''} ${isPrivate ? 'pill-private' : ''}`}
+                  onClick={() => setFilterCategory(cat)}
+                >
+                  {isPrivate ? '🔒 Private' : cat}
+                </button>
+              );
+            })}
           </div>
 
-          {habits.length > 0 && (
-            <button className="btn-clear-all" onClick={handleClearAllHabits} title="Delete all habits">
-              Clear All
+          {relevantHabits.length > 0 && (
+            <button className="btn-clear-all" onClick={handleClearAllHabits} title="Delete habits in view">
+              Clear
             </button>
           )}
         </div>
@@ -554,19 +607,26 @@ export default function HabitDashboard() {
       <main className="habits-list">
         {filteredHabits.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">✓</div>
-            <h3>No habits in this view</h3>
-            <p>Click "New Habit" above to create a habit for your schedule.</p>
+            <div className="empty-icon">{filterCategory === 'Private' ? '🔒' : '✓'}</div>
+            <h3>
+              {filterCategory === 'Private' ? 'No private habits' : 'No habits in this view'}
+            </h3>
+            <p>
+              {filterCategory === 'Private'
+                ? 'Create a habit and select "Private" category to keep it hidden from the main view.'
+                : 'Click "New Habit" above to create a habit for your schedule.'}
+            </p>
           </div>
         ) : (
           filteredHabits.map((habit) => {
             const isCompletedToday = habit.completedDates.includes(todayStr);
             const isScheduledToday = habit.targetDays.includes(todayDayId);
+            const isPrivate = habit.category === 'Private';
 
             return (
               <div
                 key={habit.id}
-                className={`habit-card ${isCompletedToday ? 'completed' : ''} ${!isScheduledToday ? 'off-day' : ''}`}
+                className={`habit-card ${isCompletedToday ? 'completed' : ''} ${!isScheduledToday ? 'off-day' : ''} ${isPrivate ? 'card-private' : ''}`}
               >
                 {/* CHECKBOX TRIGGER */}
                 <button
@@ -592,7 +652,9 @@ export default function HabitDashboard() {
                 <div className="habit-info">
                   <div className="habit-header-row">
                     <h3 className="habit-name">{habit.name}</h3>
-                    <span className="category-badge">{habit.category}</span>
+                    <span className={`category-badge ${isPrivate ? 'badge-private' : ''}`}>
+                      {isPrivate ? '🔒 Private' : habit.category}
+                    </span>
                     <span className="schedule-badge">📅 {getScheduleBadgeText(habit.targetDays)}</span>
                   </div>
                   {habit.description && <p className="habit-desc">{habit.description}</p>}
@@ -727,7 +789,9 @@ export default function HabitDashboard() {
                     onChange={(e) => setNewHabitCategory(e.target.value)}
                   >
                     {categories.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat} value={cat}>
+                        {cat === 'Private' ? '🔒 Private (Hidden from All)' : cat}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -789,16 +853,18 @@ export default function HabitDashboard() {
               <label className="section-label">Existing Categories</label>
               <div className="cat-tags-grid">
                 {categories.map((cat) => (
-                  <div key={cat} className="cat-tag-item">
-                    <span>{cat}</span>
-                    <button
-                      type="button"
-                      className="btn-remove-cat"
-                      onClick={() => handleRemoveCategory(cat)}
-                      title={`Delete ${cat}`}
-                    >
-                      ×
-                    </button>
+                  <div key={cat} className={`cat-tag-item ${cat === 'Private' ? 'item-private' : ''}`}>
+                    <span>{cat === 'Private' ? '🔒 Private (Built-in)' : cat}</span>
+                    {cat !== 'Private' && (
+                      <button
+                        type="button"
+                        className="btn-remove-cat"
+                        onClick={() => handleRemoveCategory(cat)}
+                        title={`Delete ${cat}`}
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
